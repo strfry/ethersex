@@ -891,10 +891,20 @@ uip_process(u8_t flag)
 #if !UIP_CONF_IPV6
     /* Check whether the packet is addressed to network's broadcast
        address, e.g. 192.168.10.255 on a 192.168.10.0/24 network. */
+    
+      debug_printf("checking for broadcast\n");
+      debug_printf("destip: %d.%d.%d.%d\n", BUF->destipaddr[0] >> 8, BUF->destipaddr[0] & 0xff, BUF->destipaddr[1] >> 8, BUF->destipaddr[1] & 0xff);
+      debug_printf("hostaddr: %d.%d.%d.%d\n", uip_hostaddr[3], uip_hostaddr[2], uip_hostaddr[1], uip_hostaddr[0]);
+      debug_printf("destip: %d.%d.%d.%d\n", uip_netmask[3], uip_netmask[2], uip_netmask[1], uip_netmask[0]);
+      
+    
     if(BUF->proto == UIP_PROTO_UDP
        && BUF->destipaddr[0] == (uip_hostaddr[0] | ~uip_netmask[0])
-       && BUF->destipaddr[1] == (uip_hostaddr[1] | ~uip_netmask[1]))
+       && BUF->destipaddr[1] == (uip_hostaddr[1] | ~uip_netmask[1])) {
+       
+       debug_printf("broadcast found\n");
       goto udp_input;
+    }
 #endif
 
 #endif /* UIP_BROADCAST */

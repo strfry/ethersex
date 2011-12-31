@@ -91,7 +91,7 @@
 
 /* use watchdog only when not debugging */
 #ifndef DEBUG
-#   define USE_WATCHDOG
+//#   define USE_WATCHDOG
 #endif
 
 /* macros */

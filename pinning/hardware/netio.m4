@@ -83,3 +83,7 @@ ifdef(`conf_HD44780', `
   pin(HD44780_D6, PD6)
   pin(HD44780_D7, PD7)
 ')
+
+pin(MBI5030_CLK, PA4, OUTPUT)
+pin(MBI5030_LE, PA5, OUTPUT)
+pin(MBI5030_SDO, PA6, OUTPUT)

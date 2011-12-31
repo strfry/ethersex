@@ -3,9 +3,6 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-#include "avr_mcu_section.h"
-AVR_MCU(F_CPU, "atmega128");
-
 #define REAL_MBI_COUNT ((uint8_t)MBI5030_CHIP_COUNT)
 #define MBI_COUNT REAL_MBI_COUNT
 #define CHANNELS_CONNECTED_PER_MBI 16
@@ -22,19 +19,6 @@ enum
 	MBICFG_THERMAL_ERROR_FLAG,
 	MBICFG_DATA_LOADING,
 };
-
-void mbi_init()
-{
-    PIN_CLEAR(MBI5030_CLK);
-    PIN_CLEAR(MBI5030_SDO);
-    PIN_CLEAR(MBI5030_LE);
-    
-    DDR_CONFIG_OUT(MBI5030_CLK);
-    DDR_CONFIG_OUT(MBI5030_SDO);
-    DDR_CONFIG_OUT(MBI5030_LE);
-    
-	//mbi_config();
-}
 
 void mbi_word_out(uint16_t val, uint8_t latch_at)
 {
@@ -88,8 +72,10 @@ void mbi_config(enum MBIPWMGrayCounterMode pg, enum MBIPWMCounterMode pc, enum M
 	confval |= _BV(MBICFG_DATA_LOADING); // 16 times data latch + 1 global latch
 	if (pg == MBI_12BIT_PWM_COUNTER)
 		confval |= _BV(MBICFG_PWM_GSCALE_COUNTING);
-	if (pc == MBI_STANDARD_PWM_MODE)
+	if (pc == MBI_STANDARD_PWM_MODE) {
 		confval |= _BV(MBICFG_PWM_COUNTING);
+		//confval |= _BV(MBICFG_PWM_CTR_RESET);
+	}
 	if (ps == MBI_MANUAL_SYNC)
 		confval |= _BV(MBICFG_PWM_SYNC);
 	if (tp == MBI_ENABLE_THERMAL_PROTECTION)
@@ -100,3 +86,16 @@ void mbi_config(enum MBIPWMGrayCounterMode pg, enum MBIPWMCounterMode pc, enum M
 	mbi_propagate_to_all(confval, MBI_LATCH_WRITE_CONFIG);	
 }
 
+void mbi_init()
+{
+    PIN_CLEAR(MBI5030_CLK);
+    PIN_CLEAR(MBI5030_SDO);
+    PIN_CLEAR(MBI5030_LE);
+    
+    DDR_CONFIG_OUT(MBI5030_CLK);
+    DDR_CONFIG_OUT(MBI5030_SDO);
+    DDR_CONFIG_OUT(MBI5030_LE);
+    
+    mbi_config(MBI_16BIT_PWM_COUNTER, MBI_STANDARD_PWM_MODE, MBI_AUTO_SYNC,
+        0b10101011, MBI_ENABLE_THERMAL_PROTECTION, MBI_DISABLE_GCLK_TIMEOUT);
+}

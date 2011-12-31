@@ -316,7 +316,6 @@ mainmenu_option next_comment
 	dep_bool '  uIP' DEBUG_UIP $DEBUG
 	dep_bool '  NTP' DEBUG_NTP $DEBUG
 	dep_bool '  Unknown packets' DEBUG_UNKNOWN_PACKETS $DEBUG_NET
-
 endmenu
 
 ###############################################################################
@@ -369,6 +368,7 @@ comment "I/O"
 	source hardware/hbridge/config.in
 	source mcuf/config.in
 	source hardware/storage/sd_reader/config.in
+	source hardware/mbi5030/config.in
 endmenu
 
 ###############################################################################

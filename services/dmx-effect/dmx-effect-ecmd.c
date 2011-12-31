@@ -52,7 +52,6 @@ int16_t parse_cmd_dmx_rainbow(char *cmd, char *output, uint16_t len)
 		return ECMD_ERR_PARSE_ERROR;
    } 
    return ECMD_ERR_PARSE_ERROR;
-
 }
 #endif /*Rainbow*/
 #ifdef DMX_EFFECT_RANDOM

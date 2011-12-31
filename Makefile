@@ -32,6 +32,7 @@ SUBDIRS += hardware/lcd
 SUBDIRS += hardware/lcd/s1d15g10
 SUBDIRS += hardware/lcd/ST7626
 SUBDIRS += hardware/lcd/s1d13305
+SUBDIRS += hardware/mbi5030
 SUBDIRS += hardware/onewire
 SUBDIRS += hardware/pwm
 SUBDIRS += hardware/sms

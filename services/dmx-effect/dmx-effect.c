@@ -35,7 +35,7 @@
 /* This function has been copied from the ethersex dmx module
    Author: Copyright (c) 2009 by Dirk Pannenbecker <dp@sd-gp.de>
  */
-uint8_t rainbow_enabled = DMX_EFFECT_DISABLED;
+uint8_t rainbow_enabled = DMX_EFFECT_ENABLED;
 uint8_t color_r, color_g, color_b = 0;
 #define RAINBOW_DELAY 42
 void dmx_effect_rainbow_colors(void)
@@ -73,6 +73,8 @@ void dmx_effect_rainbow_colors(void)
 	/*Copy colors to dmx storage*/
 	for(uint16_t i=0;i<DMX_EFFECT_RAINBOW_CHANNELS+(DMX_EFFECT_RAINBOW_MARGIN*DMX_EFFECT_RAINBOW_CHANNELS);i++)
 	{
+	    
+	
 #if (DMX_EFFECT_RAINBOW_MARGIN > 0)
 		for(uint8_t j=0;j<DMX_EFFECT_RAINBOW_MARGIN;j++)
 		{
@@ -80,12 +82,16 @@ void dmx_effect_rainbow_colors(void)
 			i++;
 		}
 #endif 
+
+		int pos = i + (i + 0 ) / 15;
+			
 		if(i%(DMX_EFFECT_RAINBOW_MARGIN*3+3) == DMX_EFFECT_RAINBOW_MARGIN)
-			set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+i,color_r);
+			set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+pos,color_r);
 		if(i%(DMX_EFFECT_RAINBOW_MARGIN*3+3) == 2*DMX_EFFECT_RAINBOW_MARGIN+1)
-			set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+i,color_g);
+			set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+pos,color_g);
 		if(i%(DMX_EFFECT_RAINBOW_MARGIN*3+3) == 3*DMX_EFFECT_RAINBOW_MARGIN+2)
-			set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+i,color_b);
+			set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+pos,color_b);
+		
 	}
 }
 #endif /*Rainbow end*/
