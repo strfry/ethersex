@@ -26,6 +26,7 @@
 #include "core/debug.h"
 #include "core/bool.h"
 #include "hardware/i2c/master/i2c_pca9685.h"
+#include "hardware/mbi5030/mbi5030.h"
 #include "services/dmx-storage/dmx_storage.h"
 enum starburst_update update;
 #ifdef STARBURST_PCA9685
@@ -60,8 +61,43 @@ const prog_uint16_t stevens_power_12bit[256] PROGMEM = {
 	3956, 3991, 4026, 4061, 4096 };
 #endif
 
+#ifdef STARBURST_MBI5030
+int8_t mbi5030_dmx_conn_id=-1;
+prog_uint16_t stevens_power_12bit[256] PROGMEM = {
+	0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3,
+	4, 5, 6, 7, 8, 9, 11, 12, 14, 15,
+	17, 19, 21, 23, 25, 27, 29, 32, 34, 37,
+	40, 43, 46, 49, 52, 55, 59, 62, 66, 70,
+	73, 77, 82, 86, 90, 95, 99, 104, 109, 114,
+	119, 124, 129, 135, 140, 146, 152, 158, 164, 170,
+	176, 182, 189, 196, 202, 209, 216, 224, 231, 238,
+	246, 254, 261, 269, 277, 286, 294, 302, 311, 320,
+	329, 338, 347, 356, 365, 375, 385, 394, 404, 414,
+	424, 435, 445, 456, 467, 477, 489, 500, 511, 522,
+	534, 546, 557, 569, 582, 594, 606, 619, 631, 644,
+	657, 670, 684, 697, 710, 724, 738, 752, 766, 780,
+	795, 809, 824, 838, 853, 869, 884, 899, 915, 930,
+	946, 962, 978, 994, 1011, 1027, 1044, 1061, 1078, 1095,
+	1112, 1130, 1147, 1165, 1183, 1201, 1219, 1238, 1256, 1275,
+	1293, 1312, 1331, 1351, 1370, 1389, 1409, 1429, 1449, 1469,
+	1489, 1510, 1530, 1551, 1572, 1593, 1614, 1636, 1657, 1679,
+	1700, 1722, 1745, 1767, 1789, 1812, 1834, 1857, 1880, 1904,
+	1927, 1950, 1974, 1998, 2022, 2046, 2070, 2095, 2119, 2144,
+	2169, 2194, 2219, 2245, 2270, 2296, 2322, 2348, 2374, 2400,
+	2427, 2453, 2480, 2507, 2534, 2561, 2589, 2616, 2644, 2672,
+	2700, 2728, 2757, 2785, 2814, 2843, 2872, 2901, 2931, 2960,
+	2990, 3020, 3050, 3080, 3110, 3141, 3171, 3202, 3233, 3264,
+	3295, 3327, 3359, 3390, 3422, 3454, 3487, 3519, 3552, 3585,
+	3618, 3651, 3684, 3717, 3751, 3785, 3819, 3853, 3887, 3921,
+	3956, 3991, 4026, 4061, 4095 };
+#endif
+
 #ifdef STARBURST_PCA9685
 struct starburst_channel pca9685_channels[STARBURST_PCA9685_CHANNELS]={{0,0,STARBURST_MODE_NORMAL,STARBURST_NOUPDATE}};
+#endif
+
+#ifdef STARBURST_MBI5030
+struct starburst_channel mbi5030_channels[STARBURST_MBI5030_CHANNELS]={{0,0,STARBURST_MODE_NORMAL,STARBURST_NOUPDATE}};
 #endif
 
 void starburst_init()
@@ -76,11 +112,20 @@ void starburst_init()
 	else
 		pca9685_dmx_connected = FALSE;
 #endif
+#ifdef STARBURST_MBI5030
+    mbi_init();
+//    mbi_config(MBI_12BIT_PWM_COUNTER, MBI_SPWM_MODE, MBI_AUTO_SYNC,
+//        0b10101011, MBI_ENABLE_THERMAL_PROTECTION, MBI_ENABLE_GCLK_TIMEOUT);
+    mbi5030_dmx_conn_id=dmx_storage_connect(STARBURST_MBI5030_UNIVERSE);
+#endif
 }
+
 void starburst_process()
 {
+#ifdef STARBURST_PCA9685
 	if(pca9685_dmx_connected == FALSE)
 		return;
+#endif
 	starburst_update();
 #ifdef STARBURST_PCA9685
 	for(uint8_t i=0;i<STARBURST_PCA9685_CHANNELS;i++)
@@ -149,6 +194,54 @@ void starburst_process()
 			i2c_pca9685_output_enable(ON); 
 	#endif
 #endif
+	
+#ifdef STARBURST_MBI5030
+	for(uint8_t i=0;i<STARBURST_MBI5030_CHANNELS;i++)
+	{/*
+	    debug_printf("starburst_process: update channel %d\n", i);
+		switch(mbi5030_channels[i].mode)
+		{
+			case(STARBURST_MODE_NORMAL):
+				{
+					if(mbi5030_channels[i].value != mbi5030_channels[i].target)
+					{
+					*/
+						mbi5030_channels[i].value=mbi5030_channels[i].target;
+						mbi5030_channels[i].update=STARBURST_UPDATE;
+						update=STARBURST_UPDATE;
+					/*}
+					else
+						mbi5030_channels[i].update=STARBURST_NOUPDATE;
+
+					break;
+				}
+				/*
+			case(STARBURST_MODE_FADE):
+				{
+					if(mbi5030_channels[i].value > mbi5030_channels[i].target)
+					{
+						mbi5030_channels[i].value--;
+						mbi5030_channels[i].update=STARBURST_UPDATE;
+						update=STARBURST_UPDATE;
+
+					}
+					else if(mbi5030_channels[i].value < mbi5030_channels[i].target)
+					{
+						mbi5030_channels[i].value++;
+						mbi5030_channels[i].update=STARBURST_UPDATE;
+						update=STARBURST_UPDATE;
+					}
+					else
+						mbi5030_channels[i].update=STARBURST_NOUPDATE;
+
+					break;
+				}
+				
+		}
+		*/
+	}
+	
+#endif
 }
 void starburst_update()
 {
@@ -168,6 +261,23 @@ void starburst_update()
 			{
 				/*Update the new target*/
 				pca9685_channels[i].target=tmp;
+			}
+		}
+	}
+#endif
+#ifdef STARBURST_MBI5030
+	if(get_dmx_universe_state(STARBURST_MBI5030_UNIVERSE,mbi5030_dmx_conn_id) == DMX_NEWVALUES)
+	{
+		uint8_t tmp=0;
+		for(uint8_t i=0;i<STARBURST_MBI5030_CHANNELS;i++)
+		{
+			tmp=get_dmx_channel_slot(STARBURST_MBI5030_UNIVERSE,i+STARBURST_MBI5030_OFFSET,mbi5030_dmx_conn_id);
+			mbi5030_channels[i].mode=tmp;
+			tmp=get_dmx_channel_slot(STARBURST_MBI5030_UNIVERSE,i+1+STARBURST_MBI5030_OFFSET,mbi5030_dmx_conn_id);
+			if(mbi5030_channels[i].target != tmp)
+			{
+				/*Update the new target*/
+				mbi5030_channels[i].target=tmp;
 			}
 		}
 	}
@@ -203,7 +313,23 @@ void starburst_main()
 		}
 		i2c_pca9685_set_leds(STARBURST_PCA9685_ADDRESS,0,STARBURST_PCA9685_CHANNELS*2,pca9685_values);
 	}
+#elif defined(STARBURST_MBI5030)
+	if(update == STARBURST_UPDATE) /*Only transmit if at least one channels has been updated*/
+	{
+		update=STARBURST_NOUPDATE;
+		/*Prepare Array*/
+		uint16_t mbi5030_values[STARBURST_MBI5030_CHANNELS];
+		for(uint8_t i=0;i<STARBURST_MBI5030_CHANNELS;i+=1)
+		{
+			uint16_t tmp=pgm_read_word_near(stevens_power_12bit + mbi5030_channels[i].value) * 16;
+			mbi5030_channels[i].update = STARBURST_NOUPDATE;
+			mbi5030_values[i] = tmp;
+		}
+		
+        mbi_gscale_data_out(mbi5030_values);
+	}
 #endif
+
 }
 /*
    -- Ethersex META --

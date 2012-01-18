@@ -1,0 +1,3 @@
+dep_bool_menu "Macroblock MBI5030 Support" MBI5030_SUPPORT
+	int "Number of MBI Chips" MBI5030_CHIP_COUNT 1
+endmenu

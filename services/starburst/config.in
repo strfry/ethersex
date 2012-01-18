@@ -1,6 +1,7 @@
 dep_bool_menu "Starburst: Multichannel pwm (EXPERIMENTAL)" STARBURST_SUPPORT $DMX_STORAGE_SUPPORT $ARCH_AVR $CONFIG_EXPERIMENTAL
 
 	bool "NXP PCA9685" STARBURST_PCA9685 $STARBURST_SUPPORT I2C_PCA9685_SUPPORT
+	bool "Macroblock MBI5030" STARBURST_MBI5030 $STARBURST_SUPPORT MBI5030_SUPPOR
 		 
 	if [ "$STARBURST_PCA9685" = "y" ]; then
 		int "Address" STARBURST_PCA9685_ADDRESS 95
@@ -16,5 +17,11 @@ dep_bool_menu "Starburst: Multichannel pwm (EXPERIMENTAL)" STARBURST_SUPPORT $DM
 		int "Universe" STARBURST_PCA9685_UNIVERSE 0
 		int "Offset in Universe" STARBURST_PCA9685_OFFSET 0
 	fi
+        if [ "$STARBURST_MBI5030" = "y" ]; then
+                int "Active Channels" STARBURST_MBI5030_CHANNELS 64
+                int "Universe" STARBURST_MBI5030_UNIVERSE 0
+                int "Offset in Universe" STARBURST_MBI5030_OFFSET 0
+        fi
+
 	bool "Debug" STARBURST_DEBUG
 endmenu
