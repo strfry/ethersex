@@ -61,7 +61,7 @@ prog_uint16_t stevens_power_12bit[256] PROGMEM = {
 
 #ifdef STARBURST_MBI5030
 int8_t mbi5030_dmx_conn_id=-1;
-prog_uint16_t stevens_power_12bit[256] PROGMEM = {
+const uint16_t stevens_power_12bit[256] PROGMEM = {
 	0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3,
 	4, 5, 6, 7, 8, 9, 11, 12, 14, 15,
 	17, 19, 21, 23, 25, 27, 29, 32, 34, 37,

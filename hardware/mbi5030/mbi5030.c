@@ -7,6 +7,22 @@
 #define MBI_COUNT REAL_MBI_COUNT
 #define CHANNELS_CONNECTED_PER_MBI 16
 
+#define MBI_COUNT_CHAIN0 3
+#define MBI_COUNT_CHAIN1 3
+
+
+#define PIN_SET_CHAIN(chain, pin) (chain == 0 ? PIN_SET(pin ## 0) : PIN_SET(pin ## 1))
+#define PIN_CLEAR_CHAIN(chain, pin) (chain == 0 ? PIN_CLEAR(pin ## 0) : PIN_CLEAR(pin ## 1))
+//#define PIN_SET_CHAIN(chain, pin) (chain == 0 ? PIN_SET(pin ## 0) : PIN_SET(pin ## 1))
+
+#define PIN_SET_CLK(chain) if (chain == 0) PIN_SET(MBI5030_CLK0); else PIN_SET(MBI5030_CLK1);
+#define PIN_SET_LE(chain) if (chain == 0) PIN_SET(MBI5030_LE0); else PIN_SET(MBI5030_LE1);
+#define PIN_SET_SDO(chain) if (chain == 0) PIN_SET(MBI5030_SDO0); else PIN_SET(MBI5030_SDO1);
+
+#define PIN_CLEAR_CLK(chain) if (chain == 0) PIN_CLEAR(MBI5030_CLK0); else PIN_CLEAR(MBI5030_CLK1);
+#define PIN_CLEAR_LE(chain) if (chain == 0) PIN_CLEAR(MBI5030_LE0); else PIN_CLEAR(MBI5030_LE1);
+#define PIN_CLEAR_SDO(chain) if (chain == 0) PIN_CLEAR(MBI5030_SDO0); else PIN_CLEAR(MBI5030_SDO1);
+
 enum
 {
 	MBICFG_GCLK_TIMEOUT = 0,
@@ -20,50 +36,62 @@ enum
 	MBICFG_DATA_LOADING,
 };
 
-void mbi_word_out(uint16_t val, uint8_t latch_at)
+void mbi_word_out(uint8_t chain, uint16_t val, uint8_t latch_at)
 {
-	for (uint8_t i = 0; i < 16; ++i)
-	{	
-//	    _delay_us(1);
-        PIN_CLEAR(MBI5030_CLK);
-		
-		if (val & (1 << (15 - i))) {
-            PIN_SET(MBI5030_SDO);
-		} else {
-            PIN_CLEAR(MBI5030_SDO);
-	    }
-			
-		if (i == latch_at) {
-			PIN_SET(MBI5030_LE);
-	    }
+    for (uint8_t i = 0; i < 16; ++i)
+    {	
+        PIN_CLEAR_CLK(chain);
+        if (val & (1 << (15 - i))) {
+            PIN_SET_SDO(chain);
+        } else {
+            PIN_CLEAR_SDO(chain);
+        }
+            
+        if (i == latch_at) {
+            PIN_SET_LE(chain);
+        }
 
-		PIN_SET(MBI5030_CLK);
-	}
-	PIN_CLEAR(MBI5030_LE);
+        PIN_SET_CLK(chain);
+    }
+    PIN_CLEAR_LE(chain);
 }
 
 // Latch only on last
 void mbi_propagate_to_all(uint16_t val, uint8_t latch_at)
 {
-	for (uint8_t i = 0; i < (REAL_MBI_COUNT - 1); ++i)
-		mbi_word_out(val, MBI_LATCH_NONE);
-	mbi_word_out(val, latch_at);
+	for (uint8_t i = 0; i < (MBI_COUNT_CHAIN0); ++i)
+		mbi_word_out(0, val, MBI_LATCH_NONE);
+	mbi_word_out(0, val, latch_at);
+	
+	for (uint8_t i = 0; i < (MBI_COUNT_CHAIN1); ++i)
+		mbi_word_out(1, val, MBI_LATCH_NONE);
+	mbi_word_out(1, val, latch_at);
+}
+
+void mbi_gscale_data_out_chain(uint8_t chain, uint8_t mbi_count, uint16_t* data)
+{
+    for (int8_t c = CHANNELS_PER_MBI - 1; c >= 0; --c)
+	{
+		for (int8_t m = mbi_count - 1; m >= 0; --m)
+		{
+			uint16_t val = 0;
+//			if (m < mbi_count && c != (CHANNELS_PER_MBI - 1))
+			 if (m < mbi_count && c != (CHANNELS_PER_MBI))
+				val = data[m * CHANNELS_CONNECTED_PER_MBI + c];
+			mbi_word_out(chain, val, (m == 0) ? MBI_LATCH_DATA : MBI_LATCH_NONE);
+			//mbi_word_out(val, 15);
+		}
+	}
+	mbi_word_out(chain, 0, MBI_LATCH_GLOBAL);
 }
 
 void mbi_gscale_data_out(uint16_t* data)
 {
-	for (int8_t c = CHANNELS_PER_MBI - 1; c >= 0; --c)
-	{
-		for (int8_t m = REAL_MBI_COUNT - 1; m >= 0; --m)
-		{
-			uint16_t val = 0;
-			if (m < MBI_COUNT && c != (CHANNELS_PER_MBI - 1))
-				val = data[m * CHANNELS_CONNECTED_PER_MBI + c];
-			mbi_word_out(val, (m == 0) ? MBI_LATCH_DATA : MBI_LATCH_NONE);
-			//mbi_word_out(val, 15);
-		}
-	}
-	mbi_word_out(0, MBI_LATCH_GLOBAL);
+    mbi_gscale_data_out_chain(0, MBI_COUNT_CHAIN0, data);
+    
+    data += CHANNELS_PER_MBI * MBI_COUNT_CHAIN0;
+    
+    mbi_gscale_data_out_chain(1, MBI_COUNT_CHAIN1, data);
 }
 
 void mbi_config(enum MBIPWMGrayCounterMode pg, enum MBIPWMCounterMode pc, enum MBIPWMSyncMode ps, uint8_t current_gain_adj, enum MBIThermalProtectionMode tp, enum MBIGCLKTimeoutMode to)
@@ -88,14 +116,14 @@ void mbi_config(enum MBIPWMGrayCounterMode pg, enum MBIPWMCounterMode pc, enum M
 
 void mbi_init()
 {
-    PIN_CLEAR(MBI5030_CLK);
-    PIN_CLEAR(MBI5030_SDO);
-    PIN_CLEAR(MBI5030_LE);
+    PIN_CLEAR(MBI5030_CLK0);
+    PIN_CLEAR(MBI5030_SDO0);
+    PIN_CLEAR(MBI5030_LE0);
     
-    DDR_CONFIG_OUT(MBI5030_CLK);
-    DDR_CONFIG_OUT(MBI5030_SDO);
-    DDR_CONFIG_OUT(MBI5030_LE);
+    PIN_CLEAR(MBI5030_CLK1);
+    PIN_CLEAR(MBI5030_SDO1);
+    PIN_CLEAR(MBI5030_LE1);
     
     mbi_config(MBI_16BIT_PWM_COUNTER, MBI_STANDARD_PWM_MODE, MBI_AUTO_SYNC,
-        0b10101011, MBI_ENABLE_THERMAL_PROTECTION, MBI_DISABLE_GCLK_TIMEOUT);
+        0b10101011, MBI_ENABLE_THERMAL_PROTECTION, MBI_ENABLE_GCLK_TIMEOUT);
 }

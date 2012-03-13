@@ -55,5 +55,5 @@ void mbi_init();
 //					uint8_t current_gain_adj = 0b10101011, MBIThermalProtectionMode tp = MBI_ENABLE_THERMAL_PROTECTION,
 //					MBIGCLKTimeoutMode to = MBI_ENABLE_GCLK_TIMEOUT);
 void mbi_gscale_data_out(uint16_t* data);
-void mbi_word_out(uint16_t val, uint8_t latch_at) /*__attribute__((noinline))*/;
+void mbi_word_out(uint8_t chain, uint16_t val, uint8_t latch_at) /*__attribute__((noinline))*/;
 void mbi_propagate_to_all(uint16_t val, uint8_t latch_at);

@@ -97,6 +97,7 @@ SUBDIRS += services/ntp
 SUBDIRS += services/wol
 SUBDIRS += services/motd
 SUBDIRS += services/moodlight
+SUBDIRS += services/remotepower
 SUBDIRS += services/stella
 SUBDIRS += services/starburst
 SUBDIRS += services/tftp

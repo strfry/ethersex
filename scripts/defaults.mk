@@ -81,7 +81,8 @@ endif
 
 # remove all unused code and data during linking
 CFLAGS += -fdata-sections -ffunction-sections
-LDFLAGS += -Wl,--gc-sections,--relax
+LDFLAGS += -Wl,--gc-sections
+#,--relax
 
 # reduce memory usage
 CFLAGS += -funsigned-char
