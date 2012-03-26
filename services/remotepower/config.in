@@ -1,0 +1,3 @@
+dep_bool_menu "Remote Power Outlets" REMOTEPOWER_SUPPORT
+
+endmenu
