@@ -37,9 +37,9 @@ enum starburst_update {STARBURST_UPDATE,STARBURST_NOUPDATE};
 enum starburst_mode {STARBURST_MODE_NORMAL,STARBURST_MODE_FADE};
 struct starburst_channel {
 	//Current value
-	uint8_t value;
+	uint16_t value;
 	//Target value
-	uint8_t target;
+	uint16_t target;
 	enum starburst_mode mode;
 	enum starburst_update update;
 };

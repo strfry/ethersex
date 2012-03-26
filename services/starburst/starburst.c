@@ -163,7 +163,7 @@ void starburst_process()
 	}
 	#ifdef STARBURST_PCA9685_STROBO
 		/*Hardware stroboscope support:
-			Control all channels of a PCA9685 using the output enable. 
+			Control all channels. of a PCA9685 using the output enable. 
 			Value range: 1-25 (results in 1hz - 25hz)
 		*/
 		static uint8_t pca9685_strobo_counter = 0;
@@ -188,7 +188,7 @@ void starburst_process()
 	
 #ifdef STARBURST_MBI5030
 	for(uint8_t i=0;i<STARBURST_MBI5030_CHANNELS;i++)
-	{/*
+	{
 	    debug_printf("starburst_process: update channel %d\n", i);
 		switch(mbi5030_channels[i].mode)
 		{
@@ -196,29 +196,42 @@ void starburst_process()
 				{
 					if(mbi5030_channels[i].value != mbi5030_channels[i].target)
 					{
-					*/
+					
 						mbi5030_channels[i].value=mbi5030_channels[i].target;
 						mbi5030_channels[i].update=STARBURST_UPDATE;
 						update=STARBURST_UPDATE;
-					/*}
+					}
 					else
 						mbi5030_channels[i].update=STARBURST_NOUPDATE;
 
 					break;
 				}
-				/*
+				
 			case(STARBURST_MODE_FADE):
 				{
+					unsigned int tmp = mbi5030_channels[i].value;
+					int logv = 0;
+					while (tmp != 0) {
+					  logv++;
+					  tmp = tmp >> 1; 
+					}
+					int speed = (logv / 4) * 120 + 40;
+
+					int diff = mbi5030_channels[i].target - mbi5030_channels[i].value;
+					if (speed > abs(diff)) speed = abs(diff);
+
+					
 					if(mbi5030_channels[i].value > mbi5030_channels[i].target)
 					{
-						mbi5030_channels[i].value--;
+						
+						mbi5030_channels[i].value-= speed;
 						mbi5030_channels[i].update=STARBURST_UPDATE;
 						update=STARBURST_UPDATE;
 
 					}
 					else if(mbi5030_channels[i].value < mbi5030_channels[i].target)
 					{
-						mbi5030_channels[i].value++;
+						mbi5030_channels[i].value+= speed;
 						mbi5030_channels[i].update=STARBURST_UPDATE;
 						update=STARBURST_UPDATE;
 					}
@@ -229,7 +242,7 @@ void starburst_process()
 				}
 				
 		}
-		*/
+		
 	}
 	
 #endif
@@ -261,20 +274,20 @@ void starburst_update()
 		uint8_t tmp=0;
 		for(uint8_t i=0;i<STARBURST_MBI5030_CHANNELS;i++)
 		{
-			tmp=get_dmx_channel_slot(STARBURST_MBI5030_UNIVERSE,i+STARBURST_MBI5030_OFFSET,mbi5030_dmx_conn_id);
-			mbi5030_channels[i].mode=tmp;
+//			tmp=get_dmx_channel_slot(STARBURST_MBI5030_UNIVERSE,i+STARBURST_MBI5030_OFFSET,mbi5030_dmx_conn_id);
+//			mbi5030_channels[i].mode=tmp;
+                        mbi5030_channels[i].mode=STARBURST_MODE_FADE;
 			tmp=get_dmx_channel_slot(STARBURST_MBI5030_UNIVERSE,i+1+STARBURST_MBI5030_OFFSET,mbi5030_dmx_conn_id);
-			if(mbi5030_channels[i].target != tmp)
-			{
-				/*Update the new target*/
-				mbi5030_channels[i].target=tmp;
-			}
+			/*Update the new target*/
+			mbi5030_channels[i].target=tmp * 256;
+
 		}
 	}
 #endif
 }
 void starburst_main()
 {
+	starburst_process();
 #ifdef STARBURST_PCA9685
 	if(update == STARBURST_UPDATE) /*Only transmit if at least one channels has been updated*/
 	{
@@ -311,7 +324,7 @@ void starburst_main()
 		uint16_t mbi5030_values[STARBURST_MBI5030_CHANNELS];
 		for(uint8_t i=0;i<STARBURST_MBI5030_CHANNELS;i+=1)
 		{
-			uint16_t tmp=pgm_read_word_near(stevens_power_12bit + mbi5030_channels[i].value) * 16;
+			uint16_t tmp= mbi5030_channels[i].value;
 			mbi5030_channels[i].update = STARBURST_NOUPDATE;
 			mbi5030_values[i] = tmp;
 		}
@@ -325,6 +338,5 @@ void starburst_main()
    -- Ethersex META --
    header(services/starburst/starburst.h)
    mainloop(starburst_main)
-   timer(1,starburst_process())
    init(starburst_init)
  */

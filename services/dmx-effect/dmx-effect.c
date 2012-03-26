@@ -36,14 +36,27 @@
    Author: Copyright (c) 2009 by Dirk Pannenbecker <dp@sd-gp.de>
  */
 uint8_t rainbow_enabled = DMX_EFFECT_ENABLED;
-uint8_t color_r, color_g, color_b = 0;
+uint8_t color_r = 0, color_g = 127, color_b = 127;
 #define RAINBOW_DELAY 42
 void dmx_effect_rainbow_colors(void)
 {
+	color_r = get_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+3);
+	color_g = get_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+4);
+	color_b = get_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+5);
+
 	static uint8_t rainbow_step = 0;
 	static uint16_t rainbow_delay = 0;
 	if (rainbow_delay++ <= (RAINBOW_DELAY / DMX_STORAGE_CHANNELS)) return;
 	rainbow_delay = 0;
+
+	int lumdist = (color_r + color_g + color_b - 127 - 256);
+
+	if (lumdist > 0) {
+//            color_r--;
+        } else if (lumdist < 0) {
+//            color_r++;
+        }
+
 	switch(rainbow_step) {
 		case 0:
 			if (color_g > 1) {
@@ -83,7 +96,7 @@ void dmx_effect_rainbow_colors(void)
 		}
 #endif 
 
-		int pos = i + (i + 0 ) / 15;
+		int pos = i + (i - 1 ) / 15;
 			
 		if(i%(DMX_EFFECT_RAINBOW_MARGIN*3+3) == DMX_EFFECT_RAINBOW_MARGIN)
 			set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+pos,color_r);
@@ -153,6 +166,10 @@ void dmx_effect_init()
 	color_r = 255;
 	color_g = 128;
 	color_b = 0;
+
+	set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+3, color_r);
+	set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+4, color_g);
+	set_dmx_channel(DMX_EFFECT_RAINBOW_UNIVERSE,DMX_EFFECT_RAINBOW_OFFSET+5, color_b);
 #endif
 }
 void dmx_effect_process()
