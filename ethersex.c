@@ -46,6 +46,7 @@
 global_status_t status;
 
 /* prototypes */
+#if ARCH != ARCH_HOST
 void (*jump_to_bootloader) (void) = (void *) BOOTLOADER_START_ADDRESS;
 
 #ifdef DEBUG_RESET_REASON
@@ -77,6 +78,17 @@ void __start ()
   TIMSK2 = 0;
 #endif
 }
+#endif  /* ARCH != ARCH_HOST */
+
+#ifdef BOOTLOADER_SUPPORT
+ISR(__vector_default)
+{
+  /* catch any unassigned interrupt and do nothing */
+#ifdef STATUSLED_POWER_SUPPORT
+  PIN_CLEAR (STATUSLED_POWER);
+#endif
+}
+#endif
 
 extern void ethersex_meta_init (void);
 extern void ethersex_meta_startup (void);
@@ -216,7 +228,7 @@ main (void)
       if (status.request_bootloader)
 	{
 #ifdef CLOCK_CRYSTAL_SUPPORT
-	  _TIMSK_TIMER2 &= ~_BV (TOIE2);
+	  TC2_INT_OVERFLOW_OFF;
 #endif
 #ifdef DCF77_SUPPORT
 	  ACSR &= ~_BV (ACIE);

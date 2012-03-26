@@ -27,6 +27,7 @@
 #include "config.h"
 #include "autoconf.h"
 #include "core/debug.h"
+#include "core/bit-macros.h"
 #include "i2c_master.h"
 #include "i2c_generic.h"
 
@@ -41,7 +42,7 @@
 uint8_t i2c_read_byte(const uint8_t chipaddress)
 {
 	uint8_t data[2];
-	uint8_t ret;
+	uint8_t ret = 0xff;
 
 	DEBUGGI2C( "read_byte", "addr 0x%X (%d)\n", chipaddress, chipaddress);
 
@@ -58,7 +59,7 @@ uint8_t i2c_read_byte(const uint8_t chipaddress)
 
 	ret = data[0];
 
-    DEBUGGI2C( "read_byte", "ret: 0x%X (%d)\n",ret,ret);
+	DEBUGGI2C( "read_byte", "ret: 0x%X (%d)\n",ret,ret);
 
 end:
 	i2c_master_stop();
@@ -199,11 +200,11 @@ uint16_t i2c_write_word_data(const uint8_t chipaddress, const uint8_t dataaddres
 
 	if (i2c_master_transmit_with_ack() != TW_MT_DATA_ACK) goto end;
 
-	TWDR = (data >> 8) & 0xff;
+	TWDR = HI8(data);
 
 	if (i2c_master_transmit_with_ack() != TW_MT_DATA_ACK) goto end;
 
-	TWDR = data & 0xff;
+	TWDR = LO8(data);
 
 	if (i2c_master_transmit_with_ack() != TW_MT_DATA_ACK) goto end;
 

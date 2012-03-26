@@ -24,13 +24,15 @@
 #include <avr/pgmspace.h>
 #include "starburst.h"
 #include "core/debug.h"
+#include "core/bool.h"
 #include "hardware/i2c/master/i2c_pca9685.h"
 #include "hardware/mbi5030/mbi5030.h"
 #include "services/dmx-storage/dmx_storage.h"
 enum starburst_update update;
 #ifdef STARBURST_PCA9685
 int8_t pca9685_dmx_conn_id=-1;
-prog_uint16_t stevens_power_12bit[256] PROGMEM = {
+uint8_t pca9685_dmx_connected = FALSE;
+const prog_uint16_t stevens_power_12bit[256] PROGMEM = {
 	0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3,
 	4, 5, 6, 7, 8, 9, 11, 12, 14, 15,
 	17, 19, 21, 23, 25, 27, 29, 32, 34, 37,
@@ -105,6 +107,10 @@ void starburst_init()
 	i2c_pca9685_set_mode(STARBURST_PCA9685_ADDRESS,STARBURST_PCA9685_EXTDRV,STARBURST_PCA9685_IVRT,STARBURST_PCA9685_PRESCALER);
 	//Connect to dmx-storage
 	pca9685_dmx_conn_id=dmx_storage_connect(STARBURST_PCA9685_UNIVERSE);
+	if(pca9685_dmx_conn_id != -1)
+		pca9685_dmx_connected = TRUE;
+	else
+		pca9685_dmx_connected = FALSE;
 #endif
 #ifdef STARBURST_MBI5030
     mbi_init();
@@ -116,6 +122,8 @@ void starburst_init()
 
 void starburst_process()
 {
+	if(pca9685_dmx_connected == FALSE)
+		return;
 	starburst_update();
 #ifdef STARBURST_PCA9685
 	for(uint8_t i=0;i<STARBURST_PCA9685_CHANNELS;i++)
@@ -183,7 +191,6 @@ void starburst_process()
 		else
 			i2c_pca9685_output_enable(ON); 
 	#endif
-	return update;
 #endif
 	
 #ifdef STARBURST_MBI5030
@@ -254,16 +261,17 @@ void starburst_update()
 	if(get_dmx_universe_state(STARBURST_PCA9685_UNIVERSE,pca9685_dmx_conn_id) == DMX_NEWVALUES)
 	{
 		/*Update values if they are really newer*/
+		/*Layout for starburst is CCCCMMMMS, where C is Channel, M is Mode and S is Strobe (optional)*/
 		uint8_t tmp=0;
-		for(uint8_t i=0;i<STARBURST_PCA9685_CHANNELS*2;i+=2)
+		for(uint8_t i=0;i<STARBURST_PCA9685_CHANNELS;i++)
 		{
+			tmp=get_dmx_channel_slot(STARBURST_PCA9685_UNIVERSE,i+STARBURST_PCA9685_OFFSET+STARBURST_PCA9685_CHANNELS,pca9685_dmx_conn_id);
+			pca9685_channels[i].mode=tmp;
 			tmp=get_dmx_channel_slot(STARBURST_PCA9685_UNIVERSE,i+STARBURST_PCA9685_OFFSET,pca9685_dmx_conn_id);
-			pca9685_channels[i/2].mode=tmp;
-			tmp=get_dmx_channel_slot(STARBURST_PCA9685_UNIVERSE,i+1+STARBURST_PCA9685_OFFSET,pca9685_dmx_conn_id);
-			if(pca9685_channels[i/2].target != tmp)
+			if(pca9685_channels[i].target != tmp)
 			{
 				/*Update the new target*/
-				pca9685_channels[i/2].target=tmp;
+				pca9685_channels[i].target=tmp;
 			}
 		}
 	}

@@ -36,7 +36,7 @@
 
 
 /* parse an onewire rom address at cmd, write result to ptr */
-int8_t parse_ow_rom(char *cmd, struct ow_rom_code_t *rom)
+int8_t parse_ow_rom(char *cmd, ow_rom_code_t *rom)
 {
     uint8_t *addr = rom->bytewise;
     uint8_t end;
@@ -67,8 +67,83 @@ int8_t parse_ow_rom(char *cmd, struct ow_rom_code_t *rom)
     return -1;
 }
 
-
 #ifdef ONEWIRE_DETECT_SUPPORT
+#ifdef ONEWIRE_POLLING_SUPPORT
+int16_t parse_cmd_onewire_list(char *cmd, char *output, uint16_t len)
+{
+	#ifdef ONEWIRE_DS2502_SUPPORT
+	int8_t list_type;
+        while (*cmd == ' ')
+            cmd++;
+	switch (*cmd) {
+		case 't':
+			list_type = OW_LIST_TYPE_TEMP_SENSOR;
+			break;
+		case 'e':
+			list_type = OW_LIST_TYPE_EEPROM;
+			break;
+		case '\0':
+			list_type = OW_LIST_TYPE_ALL;
+			break;
+		default:
+			return ECMD_ERR_PARSE_ERROR;
+	}
+	cmd++; /* for static bytes */
+	#endif
+	/* trick: use bytes on cmd as "connection specific static variables" */
+	if (cmd[0] != 23)	/* indicator flag: real invocation:  0 */
+	{
+		cmd[0] = 23;	/* continuing call: 23 */
+		cmd[1] = 0;	/* counter for sensors in list*/
+	}
+	uint8_t i = cmd[1];
+	/* This is a special case: the while loop below printed a sensor which was last in the list,
+	   so we still need to send an 'OK' after the sensor id */
+	if(i>=OW_SENSORS_COUNT)
+	{
+		return ECMD_FINAL_OK;
+	}
+	int16_t ret = 0;
+	do
+	{
+		if(ow_sensors[i].ow_rom_code.raw != 0)
+		{
+			#ifdef ONEWIRE_DS2502_SUPPORT
+        		if ((list_type == OW_LIST_TYPE_ALL) || (list_type == OW_LIST_TYPE_TEMP_SENSOR && ow_temp_sensor(&ow_sensors[i].ow_rom_code)) || (list_type == OW_LIST_TYPE_EEPROM && ow_eeprom(&ow_sensors[i].ow_rom_code))) {
+			#endif
+				ret = snprintf_P(output, len,
+				PSTR("%02x%02x%02x%02x%02x%02x%02x%02x"),
+				ow_sensors[i].ow_rom_code.bytewise[0],
+				ow_sensors[i].ow_rom_code.bytewise[1],
+				ow_sensors[i].ow_rom_code.bytewise[2],
+				ow_sensors[i].ow_rom_code.bytewise[3],
+				ow_sensors[i].ow_rom_code.bytewise[4],
+				ow_sensors[i].ow_rom_code.bytewise[5],
+				ow_sensors[i].ow_rom_code.bytewise[6],
+				ow_sensors[i].ow_rom_code.bytewise[7]
+				);
+			#ifdef ONEWIRE_DS2502_SUPPORT
+			}
+			#endif
+		}
+		i++;
+	} while(ret == 0 && i<OW_SENSORS_COUNT);
+	/* The while loop exited either because a sensor has been found or because there is no sensor left, let's check for that */
+	if(ret == 0)
+	{
+		/* => i has reached OW_SENSORS_COUNT */
+		return ECMD_FINAL_OK;
+	}
+	/* else, ret is != 0 which means a sensor has been found and this functions has to be called again
+	   to prevent a buffer overflow 
+	*/
+	/* Save i to cmd[1] */
+
+	cmd[1] = i;
+
+	return	ECMD_AGAIN(ret);
+}
+#else
 int16_t parse_cmd_onewire_list(char *cmd, char *output, uint16_t len)
 {
 
@@ -209,12 +284,77 @@ list_next: ;
     return ECMD_FINAL_OK;
 
 }
+#endif /* ONEWIRE_POLLING_SUPPORT*/
 #endif /* ONEWIRE_DETECT_SUPPORT */
-
-
+#ifdef ONEWIRE_POLLING_SUPPORT
 int16_t parse_cmd_onewire_get(char *cmd, char *output, uint16_t len)
 {
-    struct ow_rom_code_t rom;
+    ow_rom_code_t rom;
+    int16_t ret;
+    ret = parse_ow_rom(cmd, &rom);
+    if (ret < 0)
+        return ECMD_ERR_PARSE_ERROR;
+    if (ow_temp_sensor(&rom)) {
+	/*Search the sensor...*/
+	        for(uint8_t i=0;i<OW_SENSORS_COUNT;i++)
+                {
+			if(ow_sensors[i].ow_rom_code.raw == rom.raw)
+			{
+				/*Found it*/
+				int16_t temp=ow_sensors[i].temp;
+				div_t res = div(temp,10);
+				ret = snprintf_P(output, len, PSTR("%d.%1d"), res.quot,res.rem);
+				return ECMD_FINAL(ret);
+			}
+		}
+		/*Sensor is not in list*/
+		ret = snprintf_P(output, len, PSTR("Sensor not in list!"));
+	        return ECMD_FINAL(ret);
+#ifdef ONEWIRE_DS2502_SUPPORT
+    } else if (ow_eeprom(&rom)) {
+        debug_printf("reading mac\n");
+
+        /* disable interrupts */
+        uint8_t sreg = SREG;
+        cli();
+
+        uint8_t mac[6];
+        ret = ow_eeprom_read(&rom, mac);
+
+        /* re-enable interrupts */
+        SREG = sreg;
+
+        if (ret != 0) {
+            debug_printf("mac read failed: %d\n", ret);
+            return ECMD_ERR_READ_ERROR;
+        }
+
+        debug_printf("successfully read mac\n");
+
+        debug_printf("mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+        ret = snprintf_P(output, len,
+                PSTR("mac: %02x:%02x:%02x:%02x:%02x:%02x"),
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+#endif /* ONEWIRE_DS2502_SUPPORT */
+    } else {
+        debug_printf("unknown sensor type\n");
+#ifdef TEENSY_SUPPORT
+        strcpy_P (output, PSTR("unknown sensor type"));
+        return ECMD_FINAL(strlen(output));
+#else
+        ret = snprintf_P(output, len, PSTR("unknown sensor type"));
+#endif
+    }
+
+    return ECMD_FINAL(ret);
+
+}
+#else
+int16_t parse_cmd_onewire_get(char *cmd, char *output, uint16_t len)
+{
+    ow_rom_code_t rom;
     int16_t ret;
 
     while (*cmd == ' ')
@@ -234,7 +374,7 @@ int16_t parse_cmd_onewire_get(char *cmd, char *output, uint16_t len)
         uint8_t sreg = SREG;
         cli();
 
-        struct ow_temp_scratchpad_t sp;
+        ow_temp_scratchpad_t sp;
         ret = ow_temp_read_scratchpad(&rom, &sp);
 
         /* re-enable interrupts */
@@ -311,8 +451,13 @@ int16_t parse_cmd_onewire_get(char *cmd, char *output, uint16_t len)
 
     return ECMD_FINAL(ret);
 }
-
-
+#endif
+#ifdef ONEWIRE_POLLING_SUPPORT
+int16_t parse_cmd_onewire_convert(char *cmd, char *output, uint16_t len)
+{
+        return ECMD_FINAL_OK;
+}
+#else
 int16_t parse_cmd_onewire_convert(char *cmd, char *output, uint16_t len)
 {
     int16_t ret;
@@ -321,7 +466,7 @@ int16_t parse_cmd_onewire_convert(char *cmd, char *output, uint16_t len)
         cmd++;
     debug_printf("called onewire_convert with: \"%s\"\n", cmd);
 
-    struct ow_rom_code_t rom, *romptr;
+    ow_rom_code_t rom, *romptr;
 
     ret = parse_ow_rom(cmd, &rom);
 
@@ -349,7 +494,7 @@ int16_t parse_cmd_onewire_convert(char *cmd, char *output, uint16_t len)
         return ECMD_ERR_PARSE_ERROR;
 
 }
-
+#endif
 
 /*
   -- Ethersex META --

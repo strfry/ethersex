@@ -88,8 +88,9 @@ SUBDIRS += services/clock
 SUBDIRS += services/cron
 SUBDIRS += services/dyndns
 SUBDIRS += services/dmx-storage
-SUBDIRS += services/dmx-effect
+SUBDIRS += services/dmx-fxslot
 SUBDIRS += services/echo
+SUBDIRS += services/freqcount
 SUBDIRS += services/pam
 SUBDIRS += services/httpd
 SUBDIRS += services/jabber
@@ -120,9 +121,11 @@ ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),fullclean)
 ifneq ($(MAKECMDGOALS),mrproper)
 ifneq ($(MAKECMDGOALS),menuconfig)
+ifneq ($(MAKECMDGOALS),indent)
 
 include $(TOPDIR)/.config
 
+endif # MAKECMDGOALS!=indent
 endif # MAKECMDGOALS!=menuconfig
 endif # MAKECMDGOALS!=fullclean
 endif # MAKECMDGOALS!=mrproper
@@ -141,6 +144,41 @@ all: compile-$(TARGET)
 endif
 .PHONY: all
 .SILENT: all
+
+##############################################################################
+# logging to file make.log
+# calls make all and redirects stdout and stderr to make.log
+v:
+	(echo "===== logging make activity to file make.log =====";\
+	 echo "Build started on `date`";\
+	 ${MAKE} all 2>&1) | tee make.log
+
+##############################################################################
+# print information about binary size and flash usage
+size-info:
+	@echo "===== size info ====="
+	@$(CONFIG_SHELL) ${TOPDIR}/scripts/size $(TARGET) $(MCU)
+
+##############################################################################
+# target help displays a short overview over make options
+help:
+	@echo "Configuration targets:"
+	@echo "  menuconfig   - Update current config utilising a menu based program"
+	@echo "                 (default when .config does not exist)"
+	@echo ""
+	@echo "Cleaning targets:"
+	@echo "  clean        - Remove bin and dep files"
+	@echo "  fullclean    - Same as "clean", but also remove object files"
+	@echo "  mrproper     - Same as "fullclean", but also remove all config files"
+	@echo ""
+	@echo "Information targets:"
+	@echo "  show-config  - show enabled modules"
+	@echo "  size-info    - show size information of compiled binary"
+	@echo ""
+	@echo "Other generic targets:"
+	@echo "  all          - Build everything as specified in .config"
+	@echo "                 (default if .config exists)"
+	@echo "  v            - Same as "all" but with logging to make.log enabled"
 
 ##############################################################################
 # generic fluff
@@ -196,7 +234,7 @@ OBJECTS += $(patsubst %.c,%.o,${SRC} ${y_SRC} meta.c)
 OBJECTS += $(patsubst %.S,%.o,${ASRC} ${y_ASRC})
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) -lc -lm # Pixie Dust!!! (Bug in avr-binutils)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) -lm -lc # Pixie Dust!!! (Bug in avr-binutils)
 
 SIZEFUNCARG ?= -e printf -e scanf -e divmod
 size-check: $(OBJECTS) ethersex
@@ -365,5 +403,19 @@ ifneq ($(MAKECMDGOALS),menuconfig)
 	@echo Ethersex compiled successfully, ignore make error!
 	@false # stop compilation
 endif
+
+
+##############################################################################
+# reformat source code
+indent: INDENTCMD=indent -nbad -sc -nut -bli0 -blf -cbi0 -cli2 -npcs -nbbo
+indent:
+	@find . $(SUBDIRS) -maxdepth 1 -name "*.[ch]" | \
+	 egrep -v "(ir.*_lib|core/crypto)" | \
+	 while read f; do \
+	  $(INDENTCMD) "$$f"; \
+	done
+
+.PHONY: indent
+
 
 include $(TOPDIR)/scripts/depend.mk
